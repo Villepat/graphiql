@@ -144,6 +144,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			Value: token,
 			Path:  "/",
 		})
+		queryWithJWTToken(token)
 		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 	} else {
 		// If the request method is not GET or POST, return a 405 Method Not Allowed error
@@ -151,14 +152,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func queryWithJWTToken() {
+func queryWithJWTToken(jwtToken string) {
 	// Example usage with username:password
-	jwtToken, err := getJWTToken("username", "villepat", "!Lsdh85m9022gri")
-	if err != nil {
-		fmt.Println("Error:", err)
-	} else {
-		fmt.Println("JWT Token (username):", jwtToken)
-	}
 
 	// Example usage with email:password
 	// jwtToken, err = getJWTToken("email", "your_email@example.com", "your_password")
@@ -170,16 +165,20 @@ func queryWithJWTToken() {
 
 	query := `
 	{
-	  user {
-	    id
-	    login
-	    profile
-	    attrs
-	    auditRatio
-	    audits {
-	      id
-	    }
-	  }
+		user {
+		  id
+		  login
+		  auditRatio 
+		  campus
+		  transactions {
+			id
+			amount
+			type
+			path 
+			attrs
+			userId
+		  }
+		}
 	}
 	`
 
