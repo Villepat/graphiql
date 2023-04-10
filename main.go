@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type GraphQLRequest struct {
@@ -58,7 +60,7 @@ func getJWTToken(authType, identifier, password string) (string, error) {
 
 }
 
-func queryGraphQL(jwtToken, query string) (map[string]interface{}, error) {
+func queryGraphQL(jwtToken, query string) (*Response, error) {
 	graphqlURL := "https://01.gritlab.ax/api/graphql-engine/v1/graphql"
 
 	requestBody, err := json.Marshal(GraphQLRequest{Query: query})
@@ -86,13 +88,13 @@ func queryGraphQL(jwtToken, query string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to query GraphQL: %s", string(bodyBytes))
 	}
 
-	var result map[string]interface{}
+	var result Response
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return &result, nil
 }
 
 func main() {
@@ -129,8 +131,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		// Get the identifier and password from the form data
 		identifier := r.Form.Get("identifier")
 		password := r.Form.Get("password")
-		fmt.Println("identifier:", identifier)
-		fmt.Println("password:", password)
+		// fmt.Println("identifier:", identifier)
+		// fmt.Println("password:", password)
 		// Call the getJWTToken function to get the JWT token
 		token, err := getJWTToken("email", identifier, password)
 		if err != nil {
@@ -152,6 +154,29 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type Response struct {
+	Data Data `json:"data"`
+}
+
+type Data struct {
+	Users []User `json:"user"`
+}
+
+type User struct {
+	ID           int           `json:"id"`
+	Login        string        `json:"login"`
+	AuditRatio   float64       `json:"auditRatio"`
+	Campus       string        `json:"campus"`
+	Transactions []Transaction `json:"transactions"`
+}
+
+type Transaction struct {
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"createdAt"`
+	Amount    float64   `json:"amount"`
+	Type      string    `json:"type"`
+}
+
 func queryWithJWTToken(jwtToken string) {
 	// Example usage with username:password
 
@@ -170,24 +195,79 @@ func queryWithJWTToken(jwtToken string) {
 		  login
 		  auditRatio 
 		  campus
+	  
 		  transactions {
-			id
+			path 
+			createdAt
 			amount
 			type
-			path 
-			attrs
-			userId
 		  }
 		}
-	}
+	  }
 	`
-
-	result, err := queryGraphQL(jwtToken, query)
+	response, err := queryGraphQL(jwtToken, query)
 	if err != nil {
-		fmt.Println("Error:", err)
-	} else {
-		fmt.Println("Query result:")
-		prettyJSON, _ := json.MarshalIndent(result, "", "  ")
-		fmt.Println(string(prettyJSON))
+		log.Fatal(err)
+	}
+
+	// Access the data using the Response struct fields
+	if len(response.Data.Users) > 0 {
+		user := response.Data.Users[0]
+		fmt.Println("User ID:", user.ID)
+		fmt.Println("User Login:", user.Login)
+		fmt.Println("User Audit Ratio:", user.AuditRatio)
+		fmt.Println("User Campus:", user.Campus)
+		//	fmt.Println("User Transactions:", user.Transactions)
+		fmt.Println("")
+
+		// ... and so on
+		//create a struct for transactions which have "skill" in the type
+		type SkillTransaction struct {
+			Path      string    `json:"path"`
+			CreatedAt time.Time `json:"createdAt"`
+			Amount    float64   `json:"amount"`
+			Type      string    `json:"type"`
+		}
+		//extract the transactions with "skill" in the path
+		var skillTransactions []SkillTransaction
+		// Iterate through the transactions
+		for _, transaction := range user.Transactions {
+			// Check if the transaction path contains the word "skill"
+			if strings.Contains(transaction.Type, "skill") {
+				// Append the transaction to the skillTransactions slice
+				//print current transaction
+				skillTransactions = append(skillTransactions, SkillTransaction{
+					Path:      transaction.Path,
+					CreatedAt: transaction.CreatedAt,
+					Amount:    transaction.Amount,
+					Type:      transaction.Type,
+				})
+			}
+		}
+
+		// Print the skillTransactions
+		// for _, skillTransaction := range skillTransactions {
+		// 	fmt.Printf("Path: %s, CreatedAt: %s, Amount: %f, Type: %s\n",
+		// 		skillTransaction.Path, skillTransaction.CreatedAt, skillTransaction.Amount, skillTransaction.Type)
+		// }
+		//range over the skillTransactions, find out the highest amount for each type and save only the highest amounts in a new slice
+		//create a map of type string and float64
+		var highestAmounts = make(map[string]float64)
+		//iterate over the skillTransactions
+		for _, skillTransaction := range skillTransactions {
+			//check if the type is already in the map
+			if _, ok := highestAmounts[skillTransaction.Type]; ok {
+				//if it is, check if the current amount is higher than the one in the map
+				if skillTransaction.Amount > highestAmounts[skillTransaction.Type] {
+					//if it is, replace the value in the map with the current amount
+					highestAmounts[skillTransaction.Type] = skillTransaction.Amount
+				}
+			} else {
+				//if it is not, add the type and amount to the map
+				highestAmounts[skillTransaction.Type] = skillTransaction.Amount
+			}
+		}
+		//print the map
+		fmt.Println("Highest Amounts: ", highestAmounts)
 	}
 }
