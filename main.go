@@ -219,8 +219,8 @@ func queryWithJWTToken(jwtToken string) {
 		fmt.Println("User Campus:", user.Campus)
 		//	fmt.Println("User Transactions:", user.Transactions)
 		fmt.Println("")
-
 		// ... and so on
+
 		//create a struct for transactions which have "skill" in the type
 		type SkillTransaction struct {
 			Path      string    `json:"path"`
@@ -244,12 +244,6 @@ func queryWithJWTToken(jwtToken string) {
 				})
 			}
 		}
-
-		// Print the skillTransactions
-		// for _, skillTransaction := range skillTransactions {
-		// 	fmt.Printf("Path: %s, CreatedAt: %s, Amount: %f, Type: %s\n",
-		// 		skillTransaction.Path, skillTransaction.CreatedAt, skillTransaction.Amount, skillTransaction.Type)
-		// }
 		//range over the skillTransactions, find out the highest amount for each type and save only the highest amounts in a new slice
 		//create a map of type string and float64
 		var highestAmounts = make(map[string]float64)
@@ -269,5 +263,90 @@ func queryWithJWTToken(jwtToken string) {
 		}
 		//print the map
 		fmt.Println("Highest Amounts: ", highestAmounts)
+		fmt.Println("")
+
+		//create structs for transactions of type "up" and "down"
+		// UP = I did an audit
+		// DOWN = I got audited
+		type UpTransaction struct {
+			Path      string    `json:"path"`
+			CreatedAt time.Time `json:"createdAt"`
+			Amount    float64   `json:"amount"`
+			Type      string    `json:"type"`
+		}
+
+		type DownTransaction struct {
+			Path      string    `json:"path"`
+			CreatedAt time.Time `json:"createdAt"`
+			Amount    float64   `json:"amount"`
+			Type      string    `json:"type"`
+		}
+
+		//extract the transactions with "up" in the type, type has to be exact as "up" could be in other types as well
+		var upTransactions []UpTransaction
+		// Iterate through the transactions
+		for _, transaction := range user.Transactions {
+			// Check if the transaction type equals "up"
+			if transaction.Type == "up" {
+				// Append the transaction to the skillTransactions slice
+				upTransactions = append(upTransactions, UpTransaction{
+					Path:      transaction.Path,
+					CreatedAt: transaction.CreatedAt,
+					Amount:    transaction.Amount,
+					Type:      transaction.Type,
+				})
+			}
+		}
+		//fmt.Println("Up Transactions: ", upTransactions)
+		fmt.Println("")
+
+		//extract the transactions with "down" in the type, type has to be exact as "down" could be in other types as well
+		var downTransactions []DownTransaction
+		// Iterate through the transactions
+		for _, transaction := range user.Transactions {
+			// Check if the transaction type equals "down"
+			if transaction.Type == "down" {
+				// Append the transaction to the skillTransactions slice
+				downTransactions = append(downTransactions, DownTransaction{
+					Path:      transaction.Path,
+					CreatedAt: transaction.CreatedAt,
+					Amount:    transaction.Amount,
+					Type:      transaction.Type,
+				})
+			}
+		}
+		//fmt.Println("Down Transactions: ", downTransactions)
+
+		//create a struct for transactions which contain "/gritlab/school-curriculum/" in the path
+		type SchoolTransaction struct {
+			Path      string    `json:"path"`
+			CreatedAt time.Time `json:"createdAt"`
+			Amount    float64   `json:"amount"`
+			Type      string    `json:"type"`
+		}
+		//extract the transactions with "/gritlab/school-curriculum/" in the path
+		var schoolTransactions []SchoolTransaction
+		// Iterate through the transactions
+		for _, transaction := range user.Transactions {
+			// Check if the transaction path contains the word "/gritlab/school-curriculum/" && type is "xp" && path doesn't contain "checkpoint" or "piscine"
+			if strings.Contains(transaction.Path, "/gritlab/school-curriculum/") && transaction.Type == "xp" && !strings.Contains(transaction.Path, "checkpoint") && !strings.Contains(transaction.Path, "piscine") {
+				// Append the transaction to the skillTransactions slice
+				schoolTransactions = append(schoolTransactions, SchoolTransaction{
+					Path:      transaction.Path,
+					CreatedAt: transaction.CreatedAt,
+					Amount:    transaction.Amount,
+					Type:      transaction.Type,
+				})
+			}
+		}
+		fmt.Println("School Transactions: ", schoolTransactions)
+		fmt.Println("")
+		//calculate sum of all school transactions
+		var sumSchoolTransactions float64
+		for _, schoolTransaction := range schoolTransactions {
+			sumSchoolTransactions += schoolTransaction.Amount
+		}
+		fmt.Println("Sum of School Transactions: ", sumSchoolTransactions)
+		fmt.Println("")
 	}
 }
