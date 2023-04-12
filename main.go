@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -170,11 +171,16 @@ type User struct {
 	Transactions []Transaction `json:"transactions"`
 }
 
+type Attribute struct {
+	AuditId int `json:"auditId"`
+}
+
 type Transaction struct {
 	Path      string    `json:"path"`
 	CreatedAt time.Time `json:"createdAt"`
 	Amount    float64   `json:"amount"`
 	Type      string    `json:"type"`
+	Attrs     Attribute `json:"attrs"`
 }
 
 func queryWithJWTToken(jwtToken string) {
@@ -201,10 +207,20 @@ func queryWithJWTToken(jwtToken string) {
 			createdAt
 			amount
 			type
+			attrs
 		  }
 		}
 	  }
 	`
+
+	// {
+	// 	"path": "/gritlab/school-curriculum/make-your-game",
+	// 	"createdAt": "2023-03-28T14:13:24.672663+00:00",
+	// 	"amount": 147000,
+	// 	"type": "up",
+	// 	"attrs": {
+	// 	  "auditId": 5173
+	// 	}
 	response, err := queryGraphQL(jwtToken, query)
 	if err != nil {
 		log.Fatal(err)
@@ -323,14 +339,25 @@ func queryWithJWTToken(jwtToken string) {
 			CreatedAt time.Time `json:"createdAt"`
 			Amount    float64   `json:"amount"`
 			Type      string    `json:"type"`
+			Attrs     Attribute `json:"attrs"`
 		}
 		//extract the transactions with "/gritlab/school-curriculum/" in the path
 		var schoolTransactions []SchoolTransaction
 		// Iterate through the transactions
 		for _, transaction := range user.Transactions {
-			// Check if the transaction path contains the word "/gritlab/school-curriculum/" && type is "xp" && path doesn't contain "checkpoint" or "piscine"
-			if strings.Contains(transaction.Path, "/gritlab/school-curriculum/") && transaction.Type == "xp" && !strings.Contains(transaction.Path, "checkpoint") && !strings.Contains(transaction.Path, "piscine") {
+			// Check if the transaction path contains the word "/gritlab/school-curriculum/" && type is "xp" && path doesn't contain "checkpoint" or "piscine" && auditID is < 1
+			if strings.Contains(transaction.Path, "/gritlab/school-curriculum/") && transaction.Type == "xp" && !strings.Contains(transaction.Path, "piscine") && int(transaction.Attrs.AuditId) < 1 {
 				// Append the transaction to the skillTransactions slice
+				schoolTransactions = append(schoolTransactions, SchoolTransaction{
+					Path:      transaction.Path,
+					CreatedAt: transaction.CreatedAt,
+					Amount:    transaction.Amount,
+					Type:      transaction.Type,
+					Attrs:     transaction.Attrs,
+				})
+			}
+			//if type is "xp" && path contains "piscine" && amount is 70000 add the transaction to the schoolTransactions slice
+			if transaction.Type == "xp" && strings.Contains(transaction.Path, "piscine") && transaction.Amount == 70000 {
 				schoolTransactions = append(schoolTransactions, SchoolTransaction{
 					Path:      transaction.Path,
 					CreatedAt: transaction.CreatedAt,
@@ -339,6 +366,11 @@ func queryWithJWTToken(jwtToken string) {
 				})
 			}
 		}
+		//sort the schoolTransactions in ascending order by createdAt
+		sort.Slice(schoolTransactions, func(i, j int) bool {
+			return schoolTransactions[i].CreatedAt.Before(schoolTransactions[j].CreatedAt)
+		})
+
 		fmt.Println("School Transactions: ", schoolTransactions)
 		fmt.Println("")
 		//calculate sum of all school transactions
@@ -347,6 +379,8 @@ func queryWithJWTToken(jwtToken string) {
 			sumSchoolTransactions += schoolTransaction.Amount
 		}
 		fmt.Println("Sum of School Transactions: ", sumSchoolTransactions)
+		//print number of school transactions
+		fmt.Println("Number of School Transactions: ", len(schoolTransactions))
 		fmt.Println("")
 	}
 }
