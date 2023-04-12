@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Welcome to the world of API's</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			height: 100vh;
+		}
+
+		h1 {
+			font-size: 3em;
+			text-align: center;
+			margin-bottom: 1em;
+		}
+	</style>
+<script>
+    var highestAmountsData = {{.HighestAmountsJSON}};
+
+    document.addEventListener("DOMContentLoaded", function() {
+        var data = [];
+        for (var key in highestAmountsData) {
+            data.push({ skill: key, level: highestAmountsData[key] });
+        }
+
+        var svg = document.getElementById("bar-chart");
+        var barWidth = 40;
+        var barSpacing = 20;
+        var chartHeight = parseInt(svg.getAttribute("height"));
+        var chartWidth = parseInt(svg.getAttribute("width"));
+        var maxBarHeight = chartHeight * 0.8;
+        var yAxisLabelSpacing = 20;
+
+        // Calculate the maximum level in the data
+        var maxLevel = 100;
+
+        // Scaling factor to fit bars within the range of 0-100
+        var scaleY = maxBarHeight / maxLevel;
+
+        // Draw the y-axis labels
+        for (var i = 0; i <= 100; i += 20) {
+            var yLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            yLabel.textContent = i;
+            yLabel.setAttribute("x", yAxisLabelSpacing);
+            yLabel.setAttribute("y", chartHeight - (i * scaleY) + 4);
+            yLabel.setAttribute("font-size", "12px");
+            yLabel.setAttribute("text-anchor", "end");
+            svg.appendChild(yLabel);
+        }
+
+        data.forEach(function (d, i) {
+            var bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            var barHeight = d.level * scaleY;
+            bar.setAttribute("width", barWidth);
+            bar.setAttribute("height", barHeight);
+            bar.setAttribute("x", yAxisLabelSpacing + 10 + i * (barWidth + barSpacing));
+            bar.setAttribute("y", chartHeight - barHeight);
+            bar.setAttribute("fill", "rgba(75, 192, 192, 0.8)");
+            svg.appendChild(bar);
+
+            var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            //remove skill_ from the skill name and title case it
+            var skillName = d.skill.replace("skill_", "");
+            skillName = skillName.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+            text.textContent = skillName;
+            text.setAttribute("x", yAxisLabelSpacing + 10 + i * (barWidth + barSpacing) + barWidth / 2);
+            text.setAttribute("y", chartHeight - barHeight - 5);
+            text.setAttribute("font-size", "12px");
+            text.setAttribute("text-anchor", "middle");
+            svg.appendChild(text);
+            //when cursor is over the bar, show the level
+            bar.addEventListener("mouseover", function() {
+                text.textContent = "LVL" + ": " + d.level + "LET'S FUCKING GOOOOO";
+                text.setAttribute("fill", "red")
+               
+            });
+            //when cursor is not over the bar, show the skill name
+            bar.addEventListener("mouseout", function() {
+                text.textContent = skillName;
+                text.setAttribute("fill", "black")
+            });
+
+        });
+    });
+</script>
+
+</head>
+<body>
+
+        <h1>Let's have a look at what you have been up to</h1>
+        <svg id="bar-chart" width=80% height=100%></svg>
+   
+</body>
+</html>

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -104,6 +105,8 @@ func main() {
 	})
 	//handle /login
 	http.HandleFunc("/login", loginHandler)
+	//handle /dashboard
+	http.HandleFunc("/dashboard", dashboardHandler)
 	port := "8080"
 	fmt.Printf("Starting server at http://localhost:%s\n", port)
 	err := http.ListenAndServe(":"+port, nil)
@@ -111,6 +114,37 @@ func main() {
 		fmt.Printf("Failed to start server: %v\n", err)
 	}
 
+}
+func dashboardHandler(w http.ResponseWriter, r *http.Request) {
+	// Serve the dashboard HTML page for GET requests
+	if r.Method == "GET" {
+		// Marshal the highestAmounts data to JSON
+		jsonData, err := json.Marshal(highestAmounts)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Parse and execute the dashboard.html template
+		tmpl, err := template.ParseFiles("dashboard.html")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		data := struct {
+			HighestAmountsJSON template.JS
+		}{
+			HighestAmountsJSON: template.JS(string(jsonData)),
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		err = tmpl.Execute(w, data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -182,6 +216,9 @@ type Transaction struct {
 	Type      string    `json:"type"`
 	Attrs     Attribute `json:"attrs"`
 }
+
+// declare a global variable to store the highestAmounts which is a map
+var highestAmounts = make(map[string]float64)
 
 func queryWithJWTToken(jwtToken string) {
 	// Example usage with username:password
@@ -260,10 +297,7 @@ func queryWithJWTToken(jwtToken string) {
 				})
 			}
 		}
-		//range over the skillTransactions, find out the highest amount for each type and save only the highest amounts in a new slice
-		//create a map of type string and float64
-		var highestAmounts = make(map[string]float64)
-		//iterate over the skillTransactions
+		//range over the skillTransactions, find out the highest amount for each type and save only the highest amounts in highestAmounts
 		for _, skillTransaction := range skillTransactions {
 			//check if the type is already in the map
 			if _, ok := highestAmounts[skillTransaction.Type]; ok {
@@ -383,4 +417,5 @@ func queryWithJWTToken(jwtToken string) {
 		fmt.Println("Number of School Transactions: ", len(schoolTransactions))
 		fmt.Println("")
 	}
+	fmt.Println(highestAmounts)
 }
