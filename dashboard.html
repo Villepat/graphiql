@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+
+    <script src="https://unpkg.com/frappe-charts@1.2.4/dist/frappe-charts.min.iife.js"></script>
+
+
 	<title>Welcome to the world of API's</title>
 	<style>
 		body {
@@ -99,18 +104,96 @@ var xpTransactionsData = {{.XPTransactionsJSON}};
         });
     });
     document.addEventListener("DOMContentLoaded", function() {
-        // Accessing UserJSON and displaying user's ID, login, auditratio and
-        var userElement = document.getElementById("user");
-        userElement.innerText = "User ID: " + userData.ID;
+    // Accessing UserJSON and displaying user's id, login, auditRatio, and campus
+    var userElement = document.getElementById("user");
+
+    userElement.innerHTML = `
+        <p>User ID: ${userData.id}</p>
+        <p>Login: ${userData.login}</p>
+        <p>Audit Ratio: ${userData.auditRatio}</p>
+        <p>Campus: ${userData.campus}</p>
+    `;
+});
+
+
+// Assuming userData is already defined
+var transactions = xpTransactionsData;
+
+// Function to convert date string to Date object
+function parseDate(dateString) {
+    return new Date(dateString);
+}
+
+// Extract the earliest and latest dates from the transactions
+var minDate = parseDate(transactions[0].createdAt);
+var maxDate = parseDate(transactions[transactions.length - 1].createdAt);
+console.log(minDate);
+console.log(maxDate);
+
+transactions.forEach(function(transaction) {
+    var currentDate = parseDate(transaction.createdAt);
+    if (currentDate < minDate) {
+        minDate = currentDate;
+    } else if (currentDate > maxDate) {
+        maxDate = currentDate;
+    }
+});
+
+// Create an array of all the days between minDate and maxDate
+var dateArray = [];
+var currentDate = new Date(minDate);
+
+while (currentDate <= maxDate) {
+    dateArray.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+}
+
+// Calculate the daily XP amounts
+var dailyXP = dateArray.map(function(date) {
+    var xp = 0;
+    transactions.forEach(function(transaction) {
+        var transactionDate = parseDate(transaction.createdAt);
+        if (transactionDate.toDateString() === date.toDateString()) {
+            xp += transaction.amount;
+        }
     });
+    return xp;
+});
+
+
+document.addEventListener("DOMContentLoaded", function() {
+    var chart = new frappe.Chart("#plot-chart", {
+        title: "Daily XP",
+        data: {
+            labels: dateArray.map(date => date.toISOString().slice(0, 10)),
+            datasets: [
+                {
+                    name: "XP",
+                    values: dailyXP,
+                    chartType: 'line'
+                }
+            ]
+        },
+        type: 'line',
+        height: 250,
+        lineOptions: {
+            dotSize: 4
+        },
+        axisOptions: {
+            xIsSeries: true
+        }
+    });
+});
+
 </script>
 
 </head>
 <body>
 
-        <h1>Let's have a look at what you have been up to</h1>
+        <h1>Let's have a look at what you have been up to 😏</h1>
         <div id="user"></div>
         <svg id="bar-chart" width=80% height=100%></svg>
+        <div id="plot-chart"></div>
    
 </body>
 </html>

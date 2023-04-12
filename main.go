@@ -128,7 +128,7 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 		}
 
-		UserJSON, err := json.Marshal(user)
+		UserJSON, err := json.Marshal(userdata)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -242,7 +242,7 @@ type SchoolTransaction struct {
 var highestAmounts = make(map[string]float64)
 
 // declare a global variable to store user id, login, auditRatio, campus
-var user User
+var userdata User
 
 // declare a global varible to store schoolTransactions
 var xpTransactions []SchoolTransaction
@@ -292,12 +292,11 @@ func queryWithJWTToken(jwtToken string) {
 		fmt.Println("")
 		// ... and so on
 		//populate user struct
-		user = User{
-			ID:           user.ID,
-			Login:        user.Login,
-			AuditRatio:   user.AuditRatio,
-			Campus:       user.Campus,
-			Transactions: user.Transactions,
+		userdata = User{
+			ID:         user.ID,
+			Login:      user.Login,
+			AuditRatio: user.AuditRatio,
+			Campus:     user.Campus,
 		}
 
 		//create a struct for transactions which have "skill" in the type
@@ -438,4 +437,7 @@ func queryWithJWTToken(jwtToken string) {
 		xpTransactions = append(xpTransactions, schoolTransactions...)
 	}
 	fmt.Println(xpTransactions)
+	fmt.Println("")
+	//print user
+	fmt.Println("User: ", userdata)
 }
