@@ -118,11 +118,29 @@ func main() {
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	// Serve the dashboard HTML page for GET requests
 	if r.Method == "GET" {
-		// Marshal the highestAmounts data to JSON
-		jsonData, err := json.Marshal(highestAmounts)
+		XpTransactionsJSON, err := json.Marshal(xpTransactions)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			fmt.Println(err)
+		}
+
+		HighestAmountsJSON, err := json.Marshal(highestAmounts)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		UserJSON, err := json.Marshal(user)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		data := struct {
+			XPTransactionsJSON template.JS
+			HighestAmountsJSON template.JS
+			UserJSON           template.JS
+		}{
+			XPTransactionsJSON: template.JS(strings.TrimSpace(string(XpTransactionsJSON))),
+			HighestAmountsJSON: template.JS(strings.TrimSpace(string(HighestAmountsJSON))),
+			UserJSON:           template.JS(strings.TrimSpace(string(UserJSON))),
 		}
 
 		// Parse and execute the dashboard.html template
@@ -130,12 +148,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		}
-
-		data := struct {
-			HighestAmountsJSON template.JS
-		}{
-			HighestAmountsJSON: template.JS(string(jsonData)),
 		}
 
 		w.Header().Set("Content-Type", "text/html")
@@ -217,8 +229,23 @@ type Transaction struct {
 	Attrs     Attribute `json:"attrs"`
 }
 
+// create a struct for transactions which contain "/gritlab/school-curriculum/" in the path
+type SchoolTransaction struct {
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"createdAt"`
+	Amount    float64   `json:"amount"`
+	Type      string    `json:"type"`
+	Attrs     Attribute `json:"attrs"`
+}
+
 // declare a global variable to store the highestAmounts which is a map
 var highestAmounts = make(map[string]float64)
+
+// declare a global variable to store user id, login, auditRatio, campus
+var user User
+
+// declare a global varible to store schoolTransactions
+var xpTransactions []SchoolTransaction
 
 func queryWithJWTToken(jwtToken string) {
 	// Example usage with username:password
@@ -249,15 +276,6 @@ func queryWithJWTToken(jwtToken string) {
 		}
 	  }
 	`
-
-	// {
-	// 	"path": "/gritlab/school-curriculum/make-your-game",
-	// 	"createdAt": "2023-03-28T14:13:24.672663+00:00",
-	// 	"amount": 147000,
-	// 	"type": "up",
-	// 	"attrs": {
-	// 	  "auditId": 5173
-	// 	}
 	response, err := queryGraphQL(jwtToken, query)
 	if err != nil {
 		log.Fatal(err)
@@ -273,6 +291,14 @@ func queryWithJWTToken(jwtToken string) {
 		//	fmt.Println("User Transactions:", user.Transactions)
 		fmt.Println("")
 		// ... and so on
+		//populate user struct
+		user = User{
+			ID:           user.ID,
+			Login:        user.Login,
+			AuditRatio:   user.AuditRatio,
+			Campus:       user.Campus,
+			Transactions: user.Transactions,
+		}
 
 		//create a struct for transactions which have "skill" in the type
 		type SkillTransaction struct {
@@ -367,14 +393,6 @@ func queryWithJWTToken(jwtToken string) {
 		}
 		//fmt.Println("Down Transactions: ", downTransactions)
 
-		//create a struct for transactions which contain "/gritlab/school-curriculum/" in the path
-		type SchoolTransaction struct {
-			Path      string    `json:"path"`
-			CreatedAt time.Time `json:"createdAt"`
-			Amount    float64   `json:"amount"`
-			Type      string    `json:"type"`
-			Attrs     Attribute `json:"attrs"`
-		}
 		//extract the transactions with "/gritlab/school-curriculum/" in the path
 		var schoolTransactions []SchoolTransaction
 		// Iterate through the transactions
@@ -416,6 +434,8 @@ func queryWithJWTToken(jwtToken string) {
 		//print number of school transactions
 		fmt.Println("Number of School Transactions: ", len(schoolTransactions))
 		fmt.Println("")
+		//populate xpTransactions with SchoolTransactions
+		xpTransactions = append(xpTransactions, schoolTransactions...)
 	}
-	fmt.Println(highestAmounts)
+	fmt.Println(xpTransactions)
 }

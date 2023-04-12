@@ -20,7 +20,18 @@
 		}
 	</style>
 <script>
+    // Accessing data from the Go server
+
+var xpTransactionsData = {{.XPTransactionsJSON}};
     var highestAmountsData = {{.HighestAmountsJSON}};
+    var userData = {{.UserJSON}};
+
+    // Accessing XPTransactionsJSON
+    console.log("XP Transactions: ", xpTransactionsData);
+
+    // Accessing UserJSON
+    console.log("User data: ", userData);
+  
 
     document.addEventListener("DOMContentLoaded", function() {
         var data = [];
@@ -87,12 +98,18 @@
 
         });
     });
+    document.addEventListener("DOMContentLoaded", function() {
+        // Accessing UserJSON and displaying user's ID, login, auditratio and
+        var userElement = document.getElementById("user");
+        userElement.innerText = "User ID: " + userData.ID;
+    });
 </script>
 
 </head>
 <body>
 
         <h1>Let's have a look at what you have been up to</h1>
+        <div id="user"></div>
         <svg id="bar-chart" width=80% height=100%></svg>
    
 </body>
