@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
 
-    <script src="https://unpkg.com/frappe-charts@1.2.4/dist/frappe-charts.min.iife.js"></script>
-
+    
+    <script src="https://cdn.jsdelivr.net/npm/frappe-charts@1.2.4/dist/frappe-charts.min.iife.js"></script>
 
 	<title>Welcome to the world of API's</title>
 	<style>
@@ -23,19 +23,64 @@
 			text-align: center;
 			margin-bottom: 1em;
 		}
+       
+    /* Add this to your existing CSS */
+    #chart {
+        width: 500px;
+        height: 300px;
+    }
+</style>
 	</style>
 <script>
     // Accessing data from the Go server
 
 var xpTransactionsData = {{.XPTransactionsJSON}};
-    var highestAmountsData = {{.HighestAmountsJSON}};
-    var userData = {{.UserJSON}};
+var highestAmountsData = {{.HighestAmountsJSON}};
+var userData = {{.UserJSON}};
+//range over xpTransactionsData and create a new array with the amounts, summing them incrementally
+//create a new array with the dates
+//create a new array with names of excercises from the paths, name being the last part of the path
+var projectNames = [];
+var dates = [];
+var amounts = [];
+var cumulativeAmounts = [];
+var cumulativeAmount = 0;
+for (var i = 0; i < xpTransactionsData.length; i++) {
+  var isoDate = xpTransactionsData[i].createdAt;
+  var dateObj = new Date(isoDate);
+  var humanDate = dateObj.toLocaleDateString();
+  dates.push(humanDate);
+  amounts.push(xpTransactionsData[i].amount);
+  cumulativeAmount += xpTransactionsData[i].amount;
+  cumulativeAmounts.push(cumulativeAmount);
+    var path = xpTransactionsData[i].path;
+    var pathArray = path.split("/");
+    var projectName = pathArray[pathArray.length - 1];
+    projectNames.push(projectName);
+
+}
+console.log(dates);
+console.log(amounts);
+console.log(cumulativeAmounts);
+console.log(projectNames);
+//make a new array with the dates and the project names
+var labels = [];
+for (var i = 0; i < dates.length; i++) {
+    labels.push(dates[i] + " " + projectNames[i]);
+}
+console.log(labels);
+    
+
+
+
+
 
     // Accessing XPTransactionsJSON
     console.log("XP Transactions: ", xpTransactionsData);
 
     // Accessing UserJSON
     console.log("User data: ", userData);
+    
   
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -93,7 +138,7 @@ var xpTransactionsData = {{.XPTransactionsJSON}};
             bar.addEventListener("mouseover", function() {
                 text.textContent = "LVL" + ": " + d.level + "LET'S FUCKING GOOOOO";
                 text.setAttribute("fill", "red")
-               
+
             });
             //when cursor is not over the bar, show the skill name
             bar.addEventListener("mouseout", function() {
@@ -102,88 +147,47 @@ var xpTransactionsData = {{.XPTransactionsJSON}};
             });
 
         });
+        
+        // Accessing UserJSON and displaying user's id, login, auditRatio, and campus
+        var userElement = document.getElementById("user");
+    
+        userElement.innerHTML = `
+            <p>User ID: ${userData.id}</p>
+            <p>Login: ${userData.login}</p>
+            <p>Audit Ratio: ${userData.auditRatio}</p>
+            <p>Campus: ${userData.campus}</p>
+        `;
     });
-    document.addEventListener("DOMContentLoaded", function() {
-    // Accessing UserJSON and displaying user's id, login, auditRatio, and campus
-    var userElement = document.getElementById("user");
+        document.addEventListener("DOMContentLoaded", function (){
+            //create a dataset from xpTransactionsData, sum cumulatively the amounts
 
-    userElement.innerHTML = `
-        <p>User ID: ${userData.id}</p>
-        <p>Login: ${userData.login}</p>
-        <p>Audit Ratio: ${userData.auditRatio}</p>
-        <p>Campus: ${userData.campus}</p>
-    `;
-});
-
-
-// Assuming userData is already defined
-var transactions = xpTransactionsData;
-
-// Function to convert date string to Date object
-function parseDate(dateString) {
-    return new Date(dateString);
-}
-
-// Extract the earliest and latest dates from the transactions
-var minDate = parseDate(transactions[0].createdAt);
-var maxDate = parseDate(transactions[transactions.length - 1].createdAt);
-console.log(minDate);
-console.log(maxDate);
-
-transactions.forEach(function(transaction) {
-    var currentDate = parseDate(transaction.createdAt);
-    if (currentDate < minDate) {
-        minDate = currentDate;
-    } else if (currentDate > maxDate) {
-        maxDate = currentDate;
-    }
-});
-
-// Create an array of all the days between minDate and maxDate
-var dateArray = [];
-var currentDate = new Date(minDate);
-
-while (currentDate <= maxDate) {
-    dateArray.push(new Date(currentDate));
-    currentDate.setDate(currentDate.getDate() + 1);
-}
-
-// Calculate the daily XP amounts
-var dailyXP = dateArray.map(function(date) {
-    var xp = 0;
-    transactions.forEach(function(transaction) {
-        var transactionDate = parseDate(transaction.createdAt);
-        if (transactionDate.toDateString() === date.toDateString()) {
-            xp += transaction.amount;
-        }
-    });
-    return xp;
-});
-
-
-document.addEventListener("DOMContentLoaded", function() {
-    var chart = new frappe.Chart("#plot-chart", {
-        title: "Daily XP",
-        data: {
-            labels: dateArray.map(date => date.toISOString().slice(0, 10)),
+            
+            
+  //frappe
+  const data = {
+            labels: labels,
             datasets: [
                 {
-                    name: "XP",
-                    values: dailyXP,
-                    chartType: 'line'
-                }
+                    name: "Slow and steady", type: "line",
+                    values: cumulativeAmounts
+                    
+                },
+               
             ]
-        },
-        type: 'line',
-        height: 250,
-        lineOptions: {
-            dotSize: 4
-        },
-        axisOptions: {
-            xIsSeries: true
         }
-    });
-});
+        
+        
+         new frappe.Chart("#chart", {  // or a DOM element,
+                                                    // new Chart() in case of ES6 module with above usage
+            title: "XP over time",
+            data: data,
+            type: 'axis-mixed', // or 'bar', 'line', 'scatter', 'pie', 'percentage'
+           
+            colors: ['#7cd6fd', '#743ee2']
+        })
+
+      }
+    );  
 
 </script>
 
@@ -193,7 +197,8 @@ document.addEventListener("DOMContentLoaded", function() {
         <h1>Let's have a look at what you have been up to 😏</h1>
         <div id="user"></div>
         <svg id="bar-chart" width=80% height=100%></svg>
-        <div id="plot-chart"></div>
+        <div id="chart"></div>
+        
    
 </body>
 </html>
