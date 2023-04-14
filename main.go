@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// declare login variables
+var loggedIn bool
+
 type GraphQLRequest struct {
 	Query string `json:"query"`
 }
@@ -107,6 +110,8 @@ func main() {
 	http.HandleFunc("/login", loginHandler)
 	//handle /dashboard
 	http.HandleFunc("/dashboard", dashboardHandler)
+	//handle /logout
+	http.HandleFunc("/logout", logoutHandler)
 	port := "8080"
 	fmt.Printf("Starting server at http://localhost:%s\n", port)
 	err := http.ListenAndServe(":"+port, nil)
@@ -116,8 +121,15 @@ func main() {
 
 }
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
-	// Serve the dashboard HTML page for GET requests
+	// Check if the user is logged in
+	if !loggedIn {
+		// Redirect to the login page or display an error message
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
 	if r.Method == "GET" {
+
 		XpTransactionsJSON, err := json.Marshal(xpTransactions)
 		if err != nil {
 			fmt.Println(err)
@@ -194,11 +206,27 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			Path:  "/",
 		})
 		queryWithJWTToken(token)
+		loggedIn = true
 		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 	} else {
 		// If the request method is not GET or POST, return a 405 Method Not Allowed error
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// logouthandler, remove the cookie, redirect to index.html, remove the data
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	//set loggedIn to false
+	loggedIn = false
+	//remove the cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:   "jwt_token",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 type Response struct {
