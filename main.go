@@ -169,6 +169,7 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -225,6 +226,16 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		Path:   "/",
 		MaxAge: -1,
 	})
+	//remove the data
+	xpTransactions = []SchoolTransaction{}
+	highestAmounts = map[string]float64{}
+	userdata = User{
+		ID:           0,
+		Login:        "",
+		AuditRatio:   0,
+		Campus:       "",
+		Transactions: []Transaction{},
+	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
@@ -464,8 +475,4 @@ func queryWithJWTToken(jwtToken string) {
 		//populate xpTransactions with SchoolTransactions
 		xpTransactions = append(xpTransactions, schoolTransactions...)
 	}
-	fmt.Println(xpTransactions)
-	fmt.Println("")
-	//print user
-	fmt.Println("User: ", userdata)
 }
