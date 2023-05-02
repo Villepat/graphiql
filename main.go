@@ -78,7 +78,7 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	//handle /login
 	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/api/execute-query", executeQueryHandler)
+	http.HandleFunc("/api/execute-query", DataReceiver)
 	//handle /dashboard
 	http.HandleFunc("/dashboard", dashboardHandler)
 	//handle /logout
@@ -91,7 +91,7 @@ func main() {
 	}
 }
 
-func executeQueryHandler(w http.ResponseWriter, r *http.Request) {
+func DataReceiver(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -113,7 +113,7 @@ func executeQueryHandler(w http.ResponseWriter, r *http.Request) {
 	res2 = requestBody.ResponseTwo
 
 	loggedIn = true
-	queryWithJWTToken()
+	manipulateData()
 
 	fmt.Fprint(w, "OK")
 }
@@ -198,147 +198,18 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// func getJWTToken(authType, identifier, password string) (string, error) {
-// 	signinURL := "https://01.gritlab.ax/api/auth/signin"
+func manipulateData() {
 
-// 	// Prepare Basic authentication header
-// 	authValue := fmt.Sprintf("%s:%s", identifier, password)
-// 	encodedAuth := base64.StdEncoding.EncodeToString([]byte(authValue))
-// 	authHeader := fmt.Sprintf("Basic %s", encodedAuth)
-
-// 	// Create POST request
-// 	req, err := http.NewRequest("POST", signinURL, nil)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	// Set headers
-// 	req.Header.Set("Authorization", authHeader)
-// 	req.Header.Set("Content-Type", "application/json")
-
-// 	// Send the request
-// 	client := &http.Client{}
-// 	resp, err := client.Do(req)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	defer resp.Body.Close()
-
-// 	// Check if the response is successful
-// 	if resp.StatusCode != http.StatusOK {
-// 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-// 		return "", fmt.Errorf("failed to obtain JWT token: %s", string(bodyBytes))
-// 	}
-
-// 	// Read JWT token from the response
-// 	bodyBytes, err := ioutil.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	//trim the token and remove the double quotes
-// 	bodyBytes = bodyBytes[1 : len(bodyBytes)-1]
-// 	//fmt.Println(string(bodyBytes))
-// 	return strings.TrimSpace(string(bodyBytes)), nil
-// }
-
-// func queryGraphQL(jwtToken, query string) (*Response, error) {
-// 	graphqlURL := "https://01.gritlab.ax/api/graphql-engine/v1/graphql"
-
-// 	requestBody, err := json.Marshal(GraphQLRequest{Query: query})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	req, err := http.NewRequest("POST", graphqlURL, bytes.NewBuffer(requestBody))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
-// 	req.Header.Set("Content-Type", "application/json")
-
-// 	client := &http.Client{}
-// 	resp, err := client.Do(req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if resp.StatusCode != http.StatusOK {
-// 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-// 		return nil, fmt.Errorf("failed to query GraphQL: %s", string(bodyBytes))
-// 	}
-
-// 	var result Response
-// 	err = json.NewDecoder(resp.Body).Decode(&result)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return &result, nil
-// }
-
-func queryWithJWTToken() {
-
-	// query := `
-	// {
-	// 	user {
-	// 	  id
-	// 	  login
-	// 	  auditRatio
-	// 	  campus
-
-	// 	  transactions {
-	// 		path
-	// 		createdAt
-	// 		amount
-	// 		type
-	// 		attrs
-	// 	  }
-	// 	}
-	//   }
-	// `
-	// //Alternative query
-	// query2 := `
-	// query findFirstTransaction {
-	// 	user {
-	// 	  transactions(order_by: { createdAt: asc }, limit: 1) {
-	// 		id
-	// 		amount
-	// 		createdAt
-	// 		path
-	// 		object {
-	// 		  name
-	// 		}
-	// 	  }
-	// 	}
-	//   }
-	// `
 	var response Response
 	response = res1
 	var responsetwo Response
 	responsetwo = res2
 
-	// responsetwo, err := queryGraphQL(jwtToken, query2)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 	fmt.Println("Your very first submission was", responsetwo.Data.Users[0].Transactions[0].Path, "on", responsetwo.Data.Users[0].Transactions[0].CreatedAt, "aww, how cute! Look at you now!")
-
-	// response, err := queryGraphQL(jwtToken, query)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 
 	// Access the data using the Response struct fields
 	if len(response.Data.Users) > 0 {
 		user := response.Data.Users[0]
-		// fmt.Println("User ID:", user.ID)
-		// fmt.Println("User Login:", user.Login)
-		// fmt.Println("User Audit Ratio:", user.AuditRatio)
-		// fmt.Println("User Campus:", user.Campus)
-		//	fmt.Println("User Transactions:", user.Transactions)
-		// fmt.Println("")
 		userdata = User{
 			ID:         user.ID,
 			Login:      user.Login,
@@ -360,7 +231,6 @@ func queryWithJWTToken() {
 			// Check if the transaction path contains the word "skill"
 			if strings.Contains(transaction.Type, "skill") {
 				// Append the transaction to the skillTransactions slice
-				//print current transaction
 				skillTransactions = append(skillTransactions, SkillTransaction{
 					Path:      transaction.Path,
 					CreatedAt: transaction.CreatedAt,
@@ -383,9 +253,6 @@ func queryWithJWTToken() {
 				highestAmounts[skillTransaction.Type] = skillTransaction.Amount
 			}
 		}
-		//print the map
-		// fmt.Println("Highest Amounts: ", highestAmounts)
-		// fmt.Println("")
 
 		//create structs for transactions of type "up" and "down"
 		// UP = I did an audit
@@ -419,8 +286,6 @@ func queryWithJWTToken() {
 				})
 			}
 		}
-		//fmt.Println("Up Transactions: ", upTransactions)
-		// fmt.Println("")
 
 		//extract the transactions with "down" in the type, type has to be exact as "down" could be in other types as well
 		var downTransactions []DownTransaction
@@ -437,7 +302,6 @@ func queryWithJWTToken() {
 				})
 			}
 		}
-		//fmt.Println("Down Transactions: ", downTransactions)
 
 		//extract the transactions with "/gritlab/school-curriculum/" in the path
 		var schoolTransactions []SchoolTransaction
@@ -469,17 +333,11 @@ func queryWithJWTToken() {
 			return schoolTransactions[i].CreatedAt.Before(schoolTransactions[j].CreatedAt)
 		})
 
-		// fmt.Println("School Transactions: ", schoolTransactions)
-		// fmt.Println("")
 		//calculate sum of all school transactions
 		var sumSchoolTransactions float64
 		for _, schoolTransaction := range schoolTransactions {
 			sumSchoolTransactions += schoolTransaction.Amount
 		}
-		// fmt.Println("Sum of School Transactions: ", sumSchoolTransactions)
-		// //print number of school transactions
-		// fmt.Println("Number of School Transactions: ", len(schoolTransactions))
-		// fmt.Println("")
 		//populate xpTransactions with SchoolTransactions
 		xpTransactions = append(xpTransactions, schoolTransactions...)
 	}
