@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -71,6 +68,9 @@ var userdata User
 // declare a global varible to store schoolTransactions
 var xpTransactions []SchoolTransaction
 
+var res1 Response
+var res2 Response
+
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
@@ -92,24 +92,30 @@ func main() {
 }
 
 func executeQueryHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		decoder := json.NewDecoder(r.Body)
-		var req struct {
-			Token string `json:"token"`
-		}
-		err := decoder.Decode(&req)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		queryWithJWTToken(req.Token)
-		loggedIn = true
-
-		w.WriteHeader(http.StatusOK)
-	} else {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
+
+	// Decode the request body
+	var requestBody struct {
+		Token       string   `json:"token"`
+		Response    Response `json:"response"`
+		ResponseTwo Response `json:"responsetwo"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Store the received data in global variables res1 and res2
+	res1 = requestBody.Response
+	res2 = requestBody.ResponseTwo
+
+	loggedIn = true
+	queryWithJWTToken()
+
+	fmt.Fprint(w, "OK")
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -235,89 +241,94 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 // 	return strings.TrimSpace(string(bodyBytes)), nil
 // }
 
-func queryGraphQL(jwtToken, query string) (*Response, error) {
-	graphqlURL := "https://01.gritlab.ax/api/graphql-engine/v1/graphql"
+// func queryGraphQL(jwtToken, query string) (*Response, error) {
+// 	graphqlURL := "https://01.gritlab.ax/api/graphql-engine/v1/graphql"
 
-	requestBody, err := json.Marshal(GraphQLRequest{Query: query})
-	if err != nil {
-		return nil, err
-	}
+// 	requestBody, err := json.Marshal(GraphQLRequest{Query: query})
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	req, err := http.NewRequest("POST", graphqlURL, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, err
-	}
+// 	req, err := http.NewRequest("POST", graphqlURL, bytes.NewBuffer(requestBody))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
-	req.Header.Set("Content-Type", "application/json")
+// 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
+// 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to query GraphQL: %s", string(bodyBytes))
-	}
+// 	if resp.StatusCode != http.StatusOK {
+// 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+// 		return nil, fmt.Errorf("failed to query GraphQL: %s", string(bodyBytes))
+// 	}
 
-	var result Response
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		return nil, err
-	}
+// 	var result Response
+// 	err = json.NewDecoder(resp.Body).Decode(&result)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return &result, nil
-}
+// 	return &result, nil
+// }
 
-func queryWithJWTToken(jwtToken string) {
+func queryWithJWTToken() {
 
-	query := `
-	{
-		user {
-		  id
-		  login
-		  auditRatio 
-		  campus
-	  
-		  transactions {
-			path 
-			createdAt
-			amount
-			type
-			attrs
-		  }
-		}
-	  }
-	`
-	//Alternative query
-	query2 := `
-	query findFirstTransaction {
-		user {
-		  transactions(order_by: { createdAt: asc }, limit: 1) {
-			id
-			amount
-			createdAt
-			path
-			object {
-			  name
-			}
-		  }
-		}
-	  }
-	`
-	responsetwo, err := queryGraphQL(jwtToken, query2)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// query := `
+	// {
+	// 	user {
+	// 	  id
+	// 	  login
+	// 	  auditRatio
+	// 	  campus
+
+	// 	  transactions {
+	// 		path
+	// 		createdAt
+	// 		amount
+	// 		type
+	// 		attrs
+	// 	  }
+	// 	}
+	//   }
+	// `
+	// //Alternative query
+	// query2 := `
+	// query findFirstTransaction {
+	// 	user {
+	// 	  transactions(order_by: { createdAt: asc }, limit: 1) {
+	// 		id
+	// 		amount
+	// 		createdAt
+	// 		path
+	// 		object {
+	// 		  name
+	// 		}
+	// 	  }
+	// 	}
+	//   }
+	// `
+	var response Response
+	response = res1
+	var responsetwo Response
+	responsetwo = res2
+
+	// responsetwo, err := queryGraphQL(jwtToken, query2)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 	fmt.Println("Your very first submission was", responsetwo.Data.Users[0].Transactions[0].Path, "on", responsetwo.Data.Users[0].Transactions[0].CreatedAt, "aww, how cute! Look at you now!")
 
-	response, err := queryGraphQL(jwtToken, query)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// response, err := queryGraphQL(jwtToken, query)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	// Access the data using the Response struct fields
 	if len(response.Data.Users) > 0 {

@@ -34,58 +34,87 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-cn7l7gDp0eyniUwwAZgrzD06kc/tftFf19TOAs2zVinnD/C7E91j9yyk5//jjpt/" crossorigin="anonymous"></script>
     <!-- Custom JavaScript -->
     <script>
-        // document.getElementById('login-form').addEventListener('submit', async (e) => {
-        //     e.preventDefault();
-
-        //     const identifier = document.getElementById('identifier').value;
-        //     const password = document.getElementById('password').value;
-
-        //     console.log('Submitting login form');
-
-        //     try {
-        //         const response = await fetch('/api/login', {
-        //             method: 'POST',
-        //             headers: {
-        //                 'Content-Type': 'application/json',
-        //             },
-        //             body: JSON.stringify({ identifier, password }),
-        //         });
-
-        //         if (!response.ok) {
-        //             throw new Error(`HTTP error: ${response.status}`);
-        //         }
-
-        //         const data = await response.json();
-        //         const token = data.token;
-
-        //         console.log('Received token:', token);
-
-        //         // Set the JWT token as a cookie and redirect to the dashboard page
-        //         document.cookie = `jwt_token=${token};path=/`;
-        //         window.location.href = '/dashboard';
-        //     } catch (error) {
-        //         console.error('Login failed:', error.message);
-        //         alert('Login failed: ' + error.message);
-        //     }
-        // });
-        async function sendTokenToBackend(token) {
-    try {
-        const response = await fetch('/api/execute-query', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ token }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error: ${response.status}`);
+  
+  async function sendTokenToBackend(token) {
+  try {
+    // Define the GraphQL queries
+    const query = `
+      {
+        user {
+          id
+          login
+          auditRatio 
+          campus
+          transactions {
+            path 
+            createdAt
+            amount
+            type
+            attrs
+          }
         }
+      }
+    `;
 
-        console.log('Token sent to backend successfully');
-    } catch (error) {
-        console.error('Failed to send token to backend:', error.message);
+    const query2 = `
+      query findFirstTransaction {
+        user {
+          transactions(order_by: { createdAt: asc }, limit: 1) {
+            id
+            amount
+            createdAt
+            path
+            object {
+              name
+            }
+          }
+        }
+      }
+    `;
+
+    // Function to execute a GraphQL query
+    async function executeGraphQLQuery(query) {
+      const graphqlURL = "https://01.gritlab.ax/api/graphql-engine/v1/graphql";
+      const requestBody = JSON.stringify({ query });
+
+      const response = await fetch(graphqlURL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: requestBody,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result;
     }
+
+    // Execute the GraphQL queries
+    const response = await executeGraphQLQuery(query);
+    const responsetwo = await executeGraphQLQuery(query2);
+
+    // Send the query results to the backend
+    const backendResponse = await fetch("/api/execute-query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token, response, responsetwo }),
+    });
+
+    if (!backendResponse.ok) {
+      throw new Error(`HTTP error: ${backendResponse.status}`);
+    }
+
+    console.log("Token and query results sent to backend successfully");
+  } catch (error) {
+    console.error("Failed to send token and query results to backend:", error.message);
+  }
 }
 ////////////
 
