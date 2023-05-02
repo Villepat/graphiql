@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -79,7 +78,7 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	//handle /login
 	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/api/login", loginAPIHandler)
+	http.HandleFunc("/api/execute-query", executeQueryHandler)
 	//handle /dashboard
 	http.HandleFunc("/dashboard", dashboardHandler)
 	//handle /logout
@@ -92,30 +91,27 @@ func main() {
 	}
 }
 
-func loginAPIHandler(w http.ResponseWriter, r *http.Request) {
+func executeQueryHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		decoder := json.NewDecoder(r.Body)
-		var req loginRequest
+		var req struct {
+			Token string `json:"token"`
+		}
 		err := decoder.Decode(&req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		token, err := getJWTToken("email", req.Identifier, req.Password)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
+		queryWithJWTToken(req.Token)
 		loggedIn = true
-		queryWithJWTToken(token)
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"token": token})
+		w.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		http.ServeFile(w, r, "login.html")
@@ -196,49 +192,48 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getJWTToken(authType, identifier, password string) (string, error) {
-	signinURL := "https://01.gritlab.ax/api/auth/signin"
+// func getJWTToken(authType, identifier, password string) (string, error) {
+// 	signinURL := "https://01.gritlab.ax/api/auth/signin"
 
-	// Prepare Basic authentication header
-	authValue := fmt.Sprintf("%s:%s", identifier, password)
-	encodedAuth := base64.StdEncoding.EncodeToString([]byte(authValue))
-	authHeader := fmt.Sprintf("Basic %s", encodedAuth)
+// 	// Prepare Basic authentication header
+// 	authValue := fmt.Sprintf("%s:%s", identifier, password)
+// 	encodedAuth := base64.StdEncoding.EncodeToString([]byte(authValue))
+// 	authHeader := fmt.Sprintf("Basic %s", encodedAuth)
 
-	// Create POST request
-	req, err := http.NewRequest("POST", signinURL, nil)
-	if err != nil {
-		return "", err
-	}
+// 	// Create POST request
+// 	req, err := http.NewRequest("POST", signinURL, nil)
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	// Set headers
-	req.Header.Set("Authorization", authHeader)
-	req.Header.Set("Content-Type", "application/json")
+// 	// Set headers
+// 	req.Header.Set("Authorization", authHeader)
+// 	req.Header.Set("Content-Type", "application/json")
 
-	// Send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
+// 	// Send the request
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	defer resp.Body.Close()
 
-	// Check if the response is successful
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("failed to obtain JWT token: %s", string(bodyBytes))
-	}
+// 	// Check if the response is successful
+// 	if resp.StatusCode != http.StatusOK {
+// 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+// 		return "", fmt.Errorf("failed to obtain JWT token: %s", string(bodyBytes))
+// 	}
 
-	// Read JWT token from the response
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	//trim the token and remove the double quotes
-	bodyBytes = bodyBytes[1 : len(bodyBytes)-1]
-	//fmt.Println(string(bodyBytes))
-	return strings.TrimSpace(string(bodyBytes)), nil
-
-}
+// 	// Read JWT token from the response
+// 	bodyBytes, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	//trim the token and remove the double quotes
+// 	bodyBytes = bodyBytes[1 : len(bodyBytes)-1]
+// 	//fmt.Println(string(bodyBytes))
+// 	return strings.TrimSpace(string(bodyBytes)), nil
+// }
 
 func queryGraphQL(jwtToken, query string) (*Response, error) {
 	graphqlURL := "https://01.gritlab.ax/api/graphql-engine/v1/graphql"
